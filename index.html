@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palavra Secreta</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Segoe UI,sans-serif;
+    background:linear-gradient(135deg,#eef2ff,#dbeafe);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.container{
+    width:95%;
+    max-width:500px;
+    background:white;
+    padding:30px;
+    border-radius:25px;
+    box-shadow:0 15px 40px rgba(0,0,0,.12);
+}
+
+h1{
+    text-align:center;
+    color:#1e293b;
+    margin-bottom:20px;
+}
+
+#info{
+    text-align:center;
+    color:#64748b;
+    margin-bottom:20px;
+}
+
+#board{
+    display:grid;
+    gap:8px;
+}
+
+.row{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+}
+
+.tile{
+    aspect-ratio:1;
+    border:2px solid #cbd5e1;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+    font-weight:bold;
+    background:white;
+    text-transform:uppercase;
+    transition:.3s;
+}
+
+.correct{
+    background:#22c55e;
+    border-color:#22c55e;
+    color:white;
+}
+
+.present{
+    background:#f59e0b;
+    border-color:#f59e0b;
+    color:white;
+}
+
+.absent{
+    background:#94a3b8;
+    border-color:#94a3b8;
+    color:white;
+}
+
+#keyboard{
+    margin-top:20px;
+}
+
+.key-row{
+    display:flex;
+    justify-content:center;
+    gap:5px;
+    margin-bottom:5px;
+}
+
+.key{
+    border:none;
+    background:#e2e8f0;
+    padding:12px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    min-width:38px;
+}
+
+.big{
+    min-width:70px;
+}
+
+#message{
+    text-align:center;
+    margin-top:15px;
+    font-weight:bold;
+    color:#334155;
+    min-height:30px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>🎯 Palavra Secreta</h1>
+
+<div id="info">
+Adivinhe a palavra de 5 letras
+</div>
+
+<div id="board"></div>
+
+<div id="message"></div>
+
+<div id="keyboard"></div>
+
+</div>
+
+<script>
+
+const WORDS = [
+"CASAS","LIVRO","PRAIA","MOUSE","NUVEM",
+"SONHO","VERDE","FORTE","PEDRA","FESTA",
+"CAMPO","TIGRE","PLANO","JOGAR","CINTO",
+"NOBRE","VELHO","MAGIA","CHAVE","ROCHA"
+];
+
+let availableWords = [...WORDS];
+
+const ROWS = 6;
+const COLS = 5;
+
+let secretWord;
+let currentRow;
+let currentCol;
+let guesses;
+
+const board = document.getElementById("board");
+const keyboard = document.getElementById("keyboard");
+const message = document.getElementById("message");
+
+function createBoard(){
+
+    board.innerHTML="";
+
+    for(let r=0;r<ROWS;r++){
+
+        const row=document.createElement("div");
+        row.className="row";
+
+        for(let c=0;c<COLS;c++){
+
+            const tile=document.createElement("div");
+
+            tile.className="tile";
+            tile.id=`${r}-${c}`;
+
+            row.appendChild(tile);
+        }
+
+        board.appendChild(row);
+    }
+}
+
+function createKeyboard(){
+
+if(keyboard.innerHTML) return;
+
+const layout = [
+"QWERTYUIOP",
+"ASDFGHJKL",
+"ZXCVBNM"
+];
+
+layout.forEach(line=>{
+
+const row=document.createElement("div");
+row.className="key-row";
+
+line.split("").forEach(letter=>{
+
+const btn=document.createElement("button");
+
+btn.className="key";
+btn.textContent=letter;
+
+btn.onclick=()=>handleKey(letter);
+
+row.appendChild(btn);
+
+});
+
+keyboard.appendChild(row);
+
+});
+
+const last=document.createElement("div");
+last.className="key-row";
+
+const enter=document.createElement("button");
+enter.className="key big";
+enter.textContent="ENTER";
+enter.onclick=()=>handleKey("ENTER");
+
+const back=document.createElement("button");
+back.className="key big";
+back.textContent="⌫";
+back.onclick=()=>handleKey("BACK");
+
+last.appendChild(enter);
+last.appendChild(back);
+
+keyboard.appendChild(last);
+
+}
+
+function nextWord(){
+
+if(availableWords.length===0){
+
+message.innerHTML=
+"🏆 Parabéns! Você completou todas as palavras.";
+
+return null;
+}
+
+const index=Math.floor(
+Math.random()*availableWords.length
+);
+
+const word=availableWords[index];
+
+availableWords.splice(index,1);
+
+return word;
+
+}
+
+function startRound(){
+
+secretWord=nextWord();
+
+if(!secretWord) return;
+
+currentRow=0;
+currentCol=0;
+
+guesses=
+Array(ROWS)
+.fill("")
+.map(()=>Array(COLS).fill(""));
+
+message.textContent="";
+
+createBoard();
+
+}
+
+function handleKey(key){
+
+if(!secretWord) return;
+
+if(key==="BACK"){
+
+if(currentCol>0){
+
+currentCol--;
+
+guesses[currentRow][currentCol]="";
+
+updateBoard();
+}
+
+return;
+}
+
+if(key==="ENTER"){
+
+submitGuess();
+
+return;
+}
+
+if(currentCol<COLS){
+
+guesses[currentRow][currentCol]=key;
+
+currentCol++;
+
+updateBoard();
+}
+
+}
+
+function updateBoard(){
+
+for(let r=0;r<ROWS;r++){
+
+for(let c=0;c<COLS;c++){
+
+document.getElementById(
+`${r}-${c}`
+).textContent=
+guesses[r][c];
+
+}
+}
+}
+
+function submitGuess(){
+
+if(currentCol!==COLS){
+
+message.textContent=
+"Digite uma palavra com 5 letras.";
+
+return;
+}
+
+const guess=
+guesses[currentRow].join("");
+
+for(let i=0;i<COLS;i++){
+
+const tile=
+document.getElementById(
+`${currentRow}-${i}`
+);
+
+if(guess[i]===secretWord[i]){
+
+tile.classList.add("correct");
+
+}else if(secretWord.includes(guess[i])){
+
+tile.classList.add("present");
+
+}else{
+
+tile.classList.add("absent");
+}
+}
+
+if(guess===secretWord){
+
+message.innerHTML=
+"🎉 Acertou! Nova palavra em 2 segundos...";
+
+setTimeout(startRound,2000);
+
+return;
+}
+
+currentRow++;
+currentCol=0;
+
+if(currentRow===ROWS){
+
+message.innerHTML=
+`💀 A palavra era <b>${secretWord}</b><br>
+Nova rodada em 3 segundos...`;
+
+setTimeout(startRound,3000);
+}
+}
+
+document.addEventListener("keydown",(e)=>{
+
+let key=e.key.toUpperCase();
+
+if(key==="ENTER"){
+handleKey("ENTER");
+}
+else if(key==="BACKSPACE"){
+handleKey("BACK");
+}
+else if(/^[A-Z]$/.test(key)){
+handleKey(key);
+}
+
+});
+
+createKeyboard();
+startRound();
+
+</script>
+
+</body>
+</html>
